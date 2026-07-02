@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>统一场论 · 麦克斯韦交互沙盒</title>
+    <title>麦克斯韦方程组</title>
     
     <!-- 引入 Google Fonts 高级无衬线字体 Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -173,6 +173,8 @@
         enableInactiveZone: true, // 是否启用非激活区限制
         inactiveMargin: -5,        // 基础缓冲区厚度（负值意味着允许更靠近文本中心再开始衰减）
         featherWidth: 60,         // 边缘渐变过渡宽度（像素），数值越大边缘过渡越柔和
+        sourceLerpFactor: 0.12,   // 场源追踪光标的插值常数。值越小，延迟与滑行感越明显（推荐 0.08 ~ 0.15）
+        glowRadius: 240,          // 箭头启动辉光效果的最大距离半径（像素）
     };
     // =================================================== 
 
@@ -200,7 +202,7 @@
         wave: {
             title: "终极统一：电磁波 - 光",
             tex: "\\nabla^2 \\mathbf{E} = \\mu_0 \\varepsilon_0 \\frac{\\partial^2 \\mathbf{E}}{\\partial t^2}",
-            desc: "交变的电场和磁场相互嵌套，脱离源头向宇宙深处传播，<br>其速度恰好等于光速。<br>光，就是电磁波。"
+            desc: "交变的电场 and 磁场相互嵌套，脱离源头向宇宙深处传播，<br>其速度恰好等于光速。<br>光，就是电磁波。"
         }
     };
 
@@ -306,9 +308,16 @@
     
     let gridData = [];
 
-    let mouse = { x: window.innerWidth/2, y: window.innerHeight/2, vx: 0, vy: 0, isPressed: false };
-    let lastMouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
-    let activeSource = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    // 保存物理输入目标的鼠标坐标（原始输入位置）
+    let mouse = { x: window.innerWidth/2, y: window.innerHeight/2, isPressed: false };
+    
+    // 具有平滑物理追随与惯性机制的场源（添加 vx, vy 表示场源移动速度）
+    let activeSource = { 
+        x: window.innerWidth/2, 
+        y: window.innerHeight/2, 
+        vx: 0, 
+        vy: 0 
+    };
 
     function initGrid() {
         gridData = [];
@@ -324,6 +333,7 @@
         height = canvas.height = window.innerHeight;
         mouse.x = width / 2; mouse.y = height / 2;
         activeSource.x = width / 2; activeSource.y = height / 2;
+        activeSource.vx = 0; activeSource.vy = 0;
         initGrid();
         setTimeout(updateInfoRect, 50);
     }
@@ -333,10 +343,8 @@
     resize();
 
     function handleMove(x, y) {
-        lastMouse.x = mouse.x; lastMouse.y = mouse.y;
-        mouse.x = x; mouse.y = y;
-        mouse.vx = mouse.x - lastMouse.x;
-        mouse.vy = mouse.y - lastMouse.y;
+        mouse.x = x; 
+        mouse.y = y;
     }
     window.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY));
     window.addEventListener('touchmove', e => handleMove(e.touches[0].clientX, e.touches[0].clientY));
@@ -345,7 +353,8 @@
     window.addEventListener('touchstart', () => mouse.isPressed = true);
     window.addEventListener('touchend', () => mouse.isPressed = false);
 
-    function drawVector(x, y, vx, vy, color) {
+    // 绘制矢量，新增 glowIntensity 参数（0.0 ~ 1.0），控制箭头的辉光强度
+    function drawVector(x, y, vx, vy, color, glowIntensity = 0) {
         const mag = Math.sqrt(vx*vx + vy*vy);
         if (mag < 0.5) return; 
         
@@ -355,21 +364,37 @@
         const dy = vy * scale;
 
         const alpha = Math.min(mag / 15, 1); 
-
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + dx, y + dy);
-        ctx.strokeStyle = `${color}${Math.floor(alpha*255).toString(16).padStart(2,'0')}`;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
         const angle = Math.atan2(dy, dx);
         const headLen = 5;
-        ctx.beginPath();
-        ctx.moveTo(x + dx, y + dy);
-        ctx.lineTo(x + dx - headLen * Math.cos(angle - Math.PI/6), y + dy - headLen * Math.sin(angle - Math.PI/6));
-        ctx.moveTo(x + dx, y + dy);
-        ctx.lineTo(x + dx - headLen * Math.cos(angle + Math.PI/6), y + dy - headLen * Math.sin(angle + Math.PI/6));
+
+        // 统一描述矢量的路径轨迹结构，减少重复代码并提升稳定性
+        function tracePath() {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + dx, y + dy);
+            ctx.moveTo(x + dx, y + dy);
+            ctx.lineTo(x + dx - headLen * Math.cos(angle - Math.PI/6), y + dy - headLen * Math.sin(angle - Math.PI/6));
+            ctx.moveTo(x + dx, y + dy);
+            ctx.lineTo(x + dx - headLen * Math.cos(angle + Math.PI/6), y + dy - headLen * Math.sin(angle + Math.PI/6));
+        }
+
+        // 1. 底层微光/辉光层（仅当靠近场源时触发）
+        if (glowIntensity > 0.02) {
+            ctx.save();
+            tracePath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4.2;                            // 采用略粗的笔触以形成漫反射感
+            ctx.globalAlpha = alpha * glowIntensity * 0.45; // 受强度因子与距离的双重过滤
+            ctx.shadowBlur = glowIntensity * 12;            // 动态发光半径
+            ctx.shadowColor = color;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 2. 顶层清晰核心层
+        tracePath();
+        ctx.strokeStyle = `${color}${Math.floor(alpha*255).toString(16).padStart(2,'0')}`;
+        ctx.lineWidth = 2.2;
         ctx.stroke();
     }
 
@@ -378,10 +403,18 @@
         ctx.fillRect(0, 0, width, height);
 
         globalTime += 0.15; 
-        mouse.vx *= 0.85; mouse.vy *= 0.85; 
 
-        activeSource.x = mouse.x;
-        activeSource.y = mouse.y;
+        // 计算带延迟阻尼的平滑追随物理源
+        const prevSourceX = activeSource.x;
+        const prevSourceY = activeSource.y;
+        
+        // 缓动算法 (Lerp) 实现带阻尼感的追踪
+        activeSource.x += (mouse.x - activeSource.x) * CONFIG.sourceLerpFactor;
+        activeSource.y += (mouse.y - activeSource.y) * CONFIG.sourceLerpFactor;
+        
+        // 通过场源的实际位移来计算平滑后的速度，使相互作用的电磁感应也自带平滑过滤
+        activeSource.vx = activeSource.x - prevSourceX;
+        activeSource.vy = activeSource.y - prevSourceY;
 
         let sourceX = activeSource.x;
         let sourceY = activeSource.y;
@@ -416,23 +449,23 @@
                     targetBy = (3 * dy * dot - distSq) / Math.pow(distSq + 2000, 2.1) * m * intensityFactor;
                 }
                 else if (currentMode === 'faraday') {
-                    const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
-                    if (speed > 1) {
-                        const curlForce = 200 * speed / (distSq * 0.01 + 150);
+                    const speed = Math.sqrt(activeSource.vx * activeSource.vx + activeSource.vy * activeSource.vy);
+                    if (speed > 0.8) { // 恢复合理的阈值，过滤掉微小位移
+                        const curlForce = 250 * speed / (distSq * 0.01 + 150); // 恢复原有的空间衰减系数
                         targetEx = -dy / dist * curlForce * intensityFactor;
                         targetEy = dx / dist * curlForce * intensityFactor;
-                        targetBx = (mouse.vx * 30 / dist) * intensityFactor;
-                        targetBy = (mouse.vy * 30 / dist) * intensityFactor;
+                        targetBx = (activeSource.vx * 35 / dist) * intensityFactor; // 恢复原有范围
+                        targetBy = (activeSource.vy * 35 / dist) * intensityFactor;
                     }
                 }
                 else if (currentMode === 'ampere') {
-                    const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
-                    if (speed > 1) {
-                        const curlForce = 200 * speed / (distSq * 0.01 + 150);
+                    const speed = Math.sqrt(activeSource.vx * activeSource.vx + activeSource.vy * activeSource.vy);
+                    if (speed > 0.8) { // 恢复合理的阈值，过滤掉微小位移
+                        const curlForce = 250 * speed / (distSq * 0.01 + 150); // 恢复原有的空间衰减系数
                         targetBx = -dy / dist * curlForce * intensityFactor;
                         targetBy = dx / dist * curlForce * intensityFactor;
-                        targetEx = (mouse.vx * 30 / dist) * intensityFactor;
-                        targetEy = (mouse.vy * 30 / dist) * intensityFactor;
+                        targetEx = (activeSource.vx * 35 / dist) * intensityFactor; // 恢复原有范围
+                        targetEy = (activeSource.vy * 35 / dist) * intensityFactor;
                     }
                 }
                 else if (currentMode === 'wave') {
@@ -454,8 +487,13 @@
             cell.bx += (targetBx - cell.bx) * LERP_FACTOR;
             cell.by += (targetBy - cell.by) * LERP_FACTOR;
 
-            if (Math.abs(cell.ex) > 0 || Math.abs(cell.ey) > 0) drawVector(cell.x, cell.y, cell.ex, cell.ey, '#00e5ff');
-            if (Math.abs(cell.bx) > 0 || Math.abs(cell.by) > 0) drawVector(cell.x, cell.y, cell.bx, cell.by, '#ffea00');
+            // 基于距离场源的远近，计算箭头的发光衰减率。越接近球中心，辉光越强。
+            const maxGlowRadius = CONFIG.glowRadius;
+            const baseGlow = dist < maxGlowRadius ? Math.pow((maxGlowRadius - dist) / maxGlowRadius, 1.8) : 0;
+            const finalGlow = baseGlow * intensityFactor; // 融合遮罩区域因子，避免遮蔽区处异常高亮
+
+            if (Math.abs(cell.ex) > 0 || Math.abs(cell.ey) > 0) drawVector(cell.x, cell.y, cell.ex, cell.ey, '#00e5ff', finalGlow);
+            if (Math.abs(cell.bx) > 0 || Math.abs(cell.by) > 0) drawVector(cell.x, cell.y, cell.bx, cell.by, '#ffea00', finalGlow);
         }
 
         ctx.beginPath();
