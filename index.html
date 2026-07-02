@@ -5,25 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>统一场论 · 麦克斯韦交互沙盒</title>
     
+    <!-- 引入 Google Fonts 高级无衬线字体 Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
     <!-- 引入 KaTeX 用于渲染极简优美的数学公式 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
 
     <style>
-        /* 极简暗黑风格 */
+        /* 极简暗黑风格及全局参数配置 */
         :root {
             --bg: #050507;
             --e-color: #00e5ff; /* 电场颜色：青色 */
             --b-color: #ffea00; /* 磁场颜色：黄色 */
             --text-main: #f0f0f0;
-            --text-muted: #777;
+            --text-muted: #666;
+
+            /* =================================================== */
+            /* 【参数配置：信息面板尺寸】                           */
+            /* =================================================== */
+            --info-width: 80%;             /* 面板屏幕占比 (原为 90%) */
+            --info-max-width: 500px;       /* 面板最大宽度 (原为 800px) */
+            --info-eq-height: 65px;        /* 公式区域高度 (原为 90px) */
+            --info-desc-min-height: 50px;  /* 描述文本最小高度 (原为 80px) */
+            --info-desc-padding: 8px 16px; /* 描述文本内边距 (原为 15px 30px) */
+            /* =================================================== */
         }
+        
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: var(--bg);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            /* 统一采用极简优雅的无衬线字体族 */
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
             overflow: hidden;
             user-select: none;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         #field-canvas {
@@ -41,14 +60,15 @@
             z-index: 10;
             text-align: center;
             pointer-events: none;
-            width: 90%;
-            max-width: 800px;
+            width: var(--info-width);
+            max-width: var(--info-max-width);
         }
         .title {
-            font-size: 1rem;
-            letter-spacing: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 5px;
             color: var(--text-muted);
-            margin-bottom: 1rem;
+            margin-bottom: 1.2rem;
             text-transform: uppercase;
         }
         
@@ -57,7 +77,7 @@
             font-size: 2.2rem;
             color: var(--text-main);
             text-shadow: 0 0 20px rgba(255,255,255,0.2);
-            height: 90px;
+            height: var(--info-eq-height);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -65,16 +85,17 @@
         }
         
         #desc-display {
-            font-size: 1.05rem;
+            font-size: 0.95rem;
             font-weight: 300;
-            color: #bbb;
-            line-height: 1.6;
-            min-height: 80px;
-            background: rgba(0,0,0,0.5);
-            padding: 15px 30px;
+            color: #b0b0b5;
+            line-height: 1.7;
+            letter-spacing: 0.5px;
+            min-height: var(--info-desc-min-height);
+            background: transparent; 
+            padding: var(--info-desc-padding);
             border-radius: 20px;
             display: inline-block;
-            backdrop-filter: blur(5px);
+            backdrop-filter: none;    
         }
 
         /* 底部控制面板 */
@@ -87,29 +108,31 @@
             flex-wrap: wrap;
             justify-content: center;
             gap: 12px;
-            background: rgba(20, 20, 25, 0.8);
             padding: 10px 15px;
-            border-radius: 30px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.05);
         }
         .btn {
             background: transparent;
             border: none;
             color: var(--text-muted);
-            font-size: 0.95rem;
+            font-size: 0.85rem;
+            font-weight: 400;
             padding: 10px 18px;
             border-radius: 20px;
             cursor: pointer;
-            transition: all 0.3s;
-            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            letter-spacing: 1.5px;
         }
-        .btn:hover { color: var(--text-main); }
+        .btn:hover { 
+            color: var(--text-main); 
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+        }
+        /* 点击后转换为无胶囊的文字高光发光效果 */
         .btn.active {
-            background: var(--text-main);
-            color: var(--bg);
-            font-weight: bold;
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            background: transparent;
+            color: var(--text-main);
+            font-weight: 600;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.6), 0 0 25px rgba(255, 255, 255, 0.3);
+            box-shadow: none;
         }
         
         .hint {
@@ -117,7 +140,8 @@
             bottom: 2%; left: 50%;
             transform: translateX(-50%);
             color: var(--text-muted);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
+            font-weight: 300;
             z-index: 10;
             pointer-events: none;
             letter-spacing: 2px;
@@ -134,7 +158,6 @@
         <div id="desc-display"></div>
     </div>
 
-    <!-- 去除了第五个按钮的特殊类名，恢复完全统一的视觉极简 -->
     <div class="controls">
         <button class="btn active" data-mode="gauss_e">I. 高斯电场</button>
         <button class="btn" data-mode="gauss_b">II. 高斯磁场</button>
@@ -142,10 +165,17 @@
         <button class="btn" data-mode="ampere">IV. 安培-麦克斯韦</button>
         <button class="btn" data-mode="wave">V. 终极统一：光</button>
     </div>
-
-    <div class="hint">互动提示：移动鼠标改变场源位置 | 点击鼠标左键翻转极性</div>
-
 <script>
+    // =================================================== 
+    // 【参数配置：JS 逻辑行为】                           
+    // =================================================== 
+    const CONFIG = {
+        enableInactiveZone: true, // 是否启用非激活区限制
+        inactiveMargin: -5,        // 基础缓冲区厚度（负值意味着允许更靠近文本中心再开始衰减）
+        featherWidth: 60,         // 边缘渐变过渡宽度（像素），数值越大边缘过渡越柔和
+    };
+    // =================================================== 
+
     const equations = {
         gauss_e: {
             title: "高斯电场定律",
@@ -179,12 +209,83 @@
     const descDisplay = document.getElementById('desc-display');
     const titleDisplay = document.getElementById('mode-title');
 
+    // 缓存顶部面板与底部面板区域的边界，以便在交互与渲染时避开
+    let infoRect = { left: 0, right: 0, top: 0, bottom: 0 };
+    let controlsRect = { left: 0, right: 0, top: 0, bottom: 0 };
+
+    function updateInfoRect() {
+        if (!CONFIG.enableInactiveZone) {
+            infoRect = { left: -9999, right: -9999, top: -9999, bottom: -9999 };
+            controlsRect = { left: -9999, right: -9999, top: -9999, bottom: -9999 };
+            return;
+        }
+        // 更新顶部区域边界
+        const infoEl = document.querySelector('.info-panel');
+        if (infoEl) {
+            const rect = infoEl.getBoundingClientRect();
+            const margin = CONFIG.inactiveMargin; 
+            infoRect = {
+                left: rect.left - margin,
+                right: rect.right + margin,
+                top: rect.top - margin,
+                bottom: rect.bottom + margin
+            };
+        }
+        // 更新底部控制区域边界
+        const controlsEl = document.querySelector('.controls');
+        if (controlsEl) {
+            const rect = controlsEl.getBoundingClientRect();
+            const margin = CONFIG.inactiveMargin;
+            controlsRect = {
+                left: rect.left - margin,
+                right: rect.right + margin,
+                top: rect.top - margin,
+                bottom: rect.bottom + margin
+            };
+        }
+    }
+
+    // 计算单个矩形区域对坐标点的激活程度
+    function getRectFactor(x, y, rect) {
+        const dl = x - rect.left;
+        const dr = rect.right - x;
+        const dt = y - rect.top;
+        const db = rect.bottom - y;
+
+        const isInside = (dl > 0 && dr > 0 && dt > 0 && db > 0);
+
+        let signedDist;
+        if (isInside) {
+            signedDist = -Math.min(dl, dr, dt, db);
+        } else {
+            const dx = Math.max(-dl, -dr, 0);
+            const dy = Math.max(-dt, -db, 0);
+            signedDist = Math.sqrt(dx*dx + dy*dy);
+        }
+
+        const feather = CONFIG.featherWidth;
+        if (signedDist <= -feather) return 0.0;
+        if (signedDist >= feather) return 1.0;
+
+        const t = (signedDist + feather) / (2 * feather);
+        return t * t * (3 - 2 * t);
+    }
+
+    // 综合顶部和底部非激活区因子
+    function getActivationFactor(x, y) {
+        if (!CONFIG.enableInactiveZone) return 1.0;
+        const factorInfo = getRectFactor(x, y, infoRect);
+        const factorControls = getRectFactor(x, y, controlsRect);
+        return Math.min(factorInfo, factorControls);
+    }
+
     function updateUI(mode) {
         currentMode = mode;
         const data = equations[mode];
         titleDisplay.innerText = data.title;
         descDisplay.innerHTML = data.desc;
         katex.render(data.tex, eqDisplay, { displayMode: true, throwOnError: false });
+        setTimeout(updateInfoRect, 50);
     }
 
     document.querySelectorAll('.btn').forEach(btn => {
@@ -195,8 +296,6 @@
         });
     });
 
-    updateUI('gauss_e');
-
     // Canvas 引擎
     const canvas = document.getElementById('field-canvas');
     const ctx = canvas.getContext('2d');
@@ -205,18 +304,16 @@
     const GRID_SIZE = 40; 
     let globalTime = 0; 
     
-    // 【核心优化】：将网格状态存储起来，用于计算平滑过渡（插值）
     let gridData = [];
 
-    // 初始化鼠标
     let mouse = { x: window.innerWidth/2, y: window.innerHeight/2, vx: 0, vy: 0, isPressed: false };
     let lastMouse = { x: window.innerWidth/2, y: window.innerHeight/2 };
+    let activeSource = { x: window.innerWidth/2, y: window.innerHeight/2 };
 
     function initGrid() {
         gridData = [];
         for (let x = 0; x < width; x += GRID_SIZE) {
             for (let y = 0; y < height; y += GRID_SIZE) {
-                // 每个点存储它当前的电场和磁场向量
                 gridData.push({ x, y, ex: 0, ey: 0, bx: 0, by: 0 });
             }
         }
@@ -226,9 +323,13 @@
         width = canvas.width = window.innerWidth;
         height = canvas.height = window.innerHeight;
         mouse.x = width / 2; mouse.y = height / 2;
+        activeSource.x = width / 2; activeSource.y = height / 2;
         initGrid();
+        setTimeout(updateInfoRect, 50);
     }
     window.addEventListener('resize', resize);
+    
+    updateUI('gauss_e');
     resize();
 
     function handleMove(x, y) {
@@ -279,82 +380,84 @@
         globalTime += 0.15; 
         mouse.vx *= 0.85; mouse.vy *= 0.85; 
 
-        let sourceX = mouse.x;
-        let sourceY = mouse.y;
+        activeSource.x = mouse.x;
+        activeSource.y = mouse.y;
+
+        let sourceX = activeSource.x;
+        let sourceY = activeSource.y;
         let polarity = mouse.isPressed ? -1 : 1; 
 
-        // 动态计算插值系数：电磁波模式需要完美正弦(无需插值平滑)，其他模式提供平滑阻尼(0.15)
+        const sourceFactor = getActivationFactor(sourceX, sourceY);
         const LERP_FACTOR = (currentMode === 'wave') ? 1.0 : 0.15;
 
         for (let i = 0; i < gridData.length; i++) {
             let cell = gridData[i];
-            
+            const cellFactor = getActivationFactor(cell.x, cell.y);
+            const intensityFactor = sourceFactor * cellFactor;
+
             const dx = cell.x - sourceX;
             const dy = cell.y - sourceY;
             const distSq = dx*dx + dy*dy;
             const dist = Math.sqrt(distSq) + 1; 
 
-            // 计算该点的【目标受力值】
             let targetEx = 0, targetEy = 0; 
             let targetBx = 0, targetBy = 0; 
 
-            if (currentMode === 'gauss_e') {
-                const force = (60000 / (distSq + 600)) * polarity; 
-                targetEx = (dx / dist) * force;
-                targetEy = (dy / dist) * force;
-            } 
-            else if (currentMode === 'gauss_b') {
-                const m = 300000 * polarity; 
-                const dot = dy; 
-                targetBx = (3 * dx * dot) / Math.pow(distSq + 2000, 2.1) * m;
-                targetBy = (3 * dy * dot - distSq) / Math.pow(distSq + 2000, 2.1) * m;
-            }
-            else if (currentMode === 'faraday') {
-                const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
-                if (speed > 1) {
-                    const curlForce = 200 * speed / (distSq * 0.01 + 150);
-                    targetEx = -dy / dist * curlForce;
-                    targetEy = dx / dist * curlForce;
-                    targetBx = mouse.vx * 30 / dist;
-                    targetBy = mouse.vy * 30 / dist;
+            if (intensityFactor > 0.001) {
+                if (currentMode === 'gauss_e') {
+                    const force = (60000 / (distSq + 600)) * polarity; 
+                    targetEx = (dx / dist) * force * intensityFactor;
+                    targetEy = (dy / dist) * force * intensityFactor;
+                } 
+                else if (currentMode === 'gauss_b') {
+                    const m = 300000 * polarity; 
+                    const dot = dy; 
+                    targetBx = (3 * dx * dot) / Math.pow(distSq + 2000, 2.1) * m * intensityFactor;
+                    targetBy = (3 * dy * dot - distSq) / Math.pow(distSq + 2000, 2.1) * m * intensityFactor;
+                }
+                else if (currentMode === 'faraday') {
+                    const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
+                    if (speed > 1) {
+                        const curlForce = 200 * speed / (distSq * 0.01 + 150);
+                        targetEx = -dy / dist * curlForce * intensityFactor;
+                        targetEy = dx / dist * curlForce * intensityFactor;
+                        targetBx = (mouse.vx * 30 / dist) * intensityFactor;
+                        targetBy = (mouse.vy * 30 / dist) * intensityFactor;
+                    }
+                }
+                else if (currentMode === 'ampere') {
+                    const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
+                    if (speed > 1) {
+                        const curlForce = 200 * speed / (distSq * 0.01 + 150);
+                        targetBx = -dy / dist * curlForce * intensityFactor;
+                        targetBy = dx / dist * curlForce * intensityFactor;
+                        targetEx = (mouse.vx * 30 / dist) * intensityFactor;
+                        targetEy = (mouse.vy * 30 / dist) * intensityFactor;
+                    }
+                }
+                else if (currentMode === 'wave') {
+                    const k = 0.04;  
+                    const w = 1.0;   
+                    const phase = k * dist - w * globalTime;
+                    const amplitude = 1200 / (dist + 50); 
+                    const osc = Math.sin(phase) * amplitude;
+
+                    targetEx = (-dy / dist) * osc * intensityFactor;
+                    targetEy = (dx / dist) * osc * intensityFactor;
+                    targetBx = (dx / dist) * osc * intensityFactor;
+                    targetBy = (dy / dist) * osc * intensityFactor;
                 }
             }
-            else if (currentMode === 'ampere') {
-                const speed = Math.sqrt(mouse.vx*mouse.vx + mouse.vy*mouse.vy);
-                if (speed > 1) {
-                    const curlForce = 200 * speed / (distSq * 0.01 + 150);
-                    targetBx = -dy / dist * curlForce;
-                    targetBy = dx / dist * curlForce;
-                    targetEx = mouse.vx * 30 / dist;
-                    targetEy = mouse.vy * 30 / dist;
-                }
-            }
-            else if (currentMode === 'wave') {
-                const k = 0.04;  
-                const w = 1.0;   
-                const phase = k * dist - w * globalTime;
-                const amplitude = 1200 / (dist + 50); 
-                const osc = Math.sin(phase) * amplitude;
 
-                targetEx = (-dy / dist) * osc;
-                targetEy = (dx / dist) * osc;
-                targetBx = (dx / dist) * osc;
-                targetBy = (dy / dist) * osc;
-            }
-
-            // 【核心优化】：应用流体平滑插值 (Lerp)
-            // 指针不会瞬间跳转，而是以 15% 的速度向目标值过渡，看起来极其丝滑
             cell.ex += (targetEx - cell.ex) * LERP_FACTOR;
             cell.ey += (targetEy - cell.ey) * LERP_FACTOR;
             cell.bx += (targetBx - cell.bx) * LERP_FACTOR;
             cell.by += (targetBy - cell.by) * LERP_FACTOR;
 
-            // 绘制最终插值后的指针
             if (Math.abs(cell.ex) > 0 || Math.abs(cell.ey) > 0) drawVector(cell.x, cell.y, cell.ex, cell.ey, '#00e5ff');
             if (Math.abs(cell.bx) > 0 || Math.abs(cell.by) > 0) drawVector(cell.x, cell.y, cell.bx, cell.by, '#ffea00');
         }
 
-        // 绘制场源
         ctx.beginPath();
         ctx.arc(sourceX, sourceY, 8, 0, Math.PI * 2);
         
@@ -370,10 +473,14 @@
             ctx.fillStyle = Math.sin(-globalTime) > 0 ? '#00e5ff' : '#ffea00';
         }
 
-        ctx.shadowBlur = 25;
+        ctx.globalAlpha = 0.35 + 0.65 * sourceFactor;      
+        ctx.shadowBlur = 6 + 19 * sourceFactor;            
         ctx.shadowColor = ctx.fillStyle;
+        
         ctx.fill();
+        
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1.0;
 
         requestAnimationFrame(animate);
     }
